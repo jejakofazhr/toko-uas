@@ -7,7 +7,7 @@ import bcrypt from "bcrypt";
 
 const prisma = new PrismaClient();
 
-export default NextAuth({
+export const authOptions = {
   adapter: PrismaAdapter(prisma),
   providers: [
     GoogleProvider({
@@ -42,7 +42,9 @@ export default NextAuth({
     })
   ],
   session: {
-    strategy: "jwt",  // menggunakan JWT agar tak perlu simpan session di DB:contentReference[oaicite:2]{index=2}:contentReference[oaicite:3]{index=3}
+    strategy: "jwt",  // menggunakan JWT agar tak perlu simpan session di DB
   },
   secret: process.env.NEXTAUTH_SECRET,
-});
+};
+
+export default NextAuth(authOptions);
