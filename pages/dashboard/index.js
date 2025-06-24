@@ -17,50 +17,52 @@ export default function Dashboard({ products: initialProducts }) {
     alert("Pilih gambar produk");
     return;
   }
+  setIsUploading(true); // MULAI LOADING
 
-  // Minta URL upload ke API
-  const res1 = await fetch("/api/blob/upload-url", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename: imageFile.name, contentType: imageFile.type }),
-  });
-  if (!res1.ok) {
-    alert("Gagal mendapatkan upload URL");
-    return;
-  }
-  const { url, uploadUrl } = await res1.json();
+  try {
+    // 1. Minta URL upload
+    const res1 = await fetch("/api/blob/upload-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: imageFile.name, contentType: imageFile.type }),
+    });
+    if (!res1.ok) throw new Error("Gagal mendapatkan upload URL");
+    const { url, uploadUrl } = await res1.json();
 
-  // Upload gambar langsung ke Blob Storage
-  const uploadRes = await fetch(uploadUrl, {
-    method: "PUT",
-    body: imageFile,
-    headers: { "Content-Type": imageFile.type }
-  });
-  if (!uploadRes.ok) {
-    alert("Upload gambar gagal!");
-    return;
-  }
+    // 2. Upload gambar ke blob
+    const uploadRes = await fetch(uploadUrl, {
+      method: "PUT",
+      body: imageFile,
+      headers: { "Content-Type": imageFile.type }
+    });
+    if (!uploadRes.ok) throw new Error("Upload gambar gagal!");
 
-  // Simpan data produk ke database
-  const res2 = await fetch("/api/products", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name,
-      description,
-      imageUrl: url,
-    }),
-  });
-  if (res2.ok) {
-    const { product } = await res2.json();
-    setProducts([product, ...products]);
-    setName(""); setDescription(""); setImageFile(null);
-    alert("Produk berhasil ditambahkan!");
-  } else {
-    const err = await res2.json();
-    alert("Gagal simpan data produk: " + err.message);
+    // 3. Simpan produk ke database
+    const res2 = await fetch("/api/products", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name,
+        description,
+        imageUrl: url,
+      }),
+    });
+    if (res2.ok) {
+      const { product } = await res2.json();
+      setProducts([product, ...products]);
+      setName(""); setDescription(""); setImageFile(null);
+      alert("Produk berhasil ditambahkan!");
+    } else {
+      const err = await res2.json();
+      alert("Gagal simpan data produk: " + err.message);
+    }
+  } catch (err) {
+    alert(err.message || "Upload gagal!");
+  } finally {
+    setIsUploading(false); // SELESAI LOADING
   }
 }
+
 
 
   async function handleDelete(productId) {
@@ -87,9 +89,22 @@ export default function Dashboard({ products: initialProducts }) {
                   className="w-full p-2 border rounded" />
         <input type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files[0])}
                className="block" />
-        <button type="submit" className="bg-green-600 text-white py-2 px-4 rounded">
-          + Tambah Produk
-        </button>
+<button
+  type="submit"
+  className={`bg-green-600 text-white py-2 px-4 rounded ${isUploading ? "opacity-50 cursor-not-allowed" : ""}`}
+  disabled={isUploading}
+>
+  {isUploading ? (
+    <span className="flex items-center justify-center gap-2">
+      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+      </svg>
+      Uploading...
+    </span>
+  ) : "+ Tambah Produk"}
+</button>
+
       </form>
 
       {/* Daftar Produk User */}
