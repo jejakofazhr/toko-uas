@@ -12,28 +12,56 @@ export default function Dashboard({ products: initialProducts }) {
 
   // Handle submit produk baru
   async function handleSubmit(e) {
-    e.preventDefault();
-    if (!imageFile) {
-      alert("Pilih gambar produk");
-      return;
-    }
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("description", description);
-    formData.append("image", imageFile);
-    // Kirim ke API upload produk
-    const res = await fetch("/api/products", { method: "POST", body: formData });
-    if (res.ok) {
-      const { product } = await res.json();
-      setProducts([product, ...products]);  // update list produk di state
-      // reset form
-      setName(""); setDescription(""); setImageFile(null);
-      alert("Produk berhasil ditambahkan!");
-    } else {
-      const err = await res.json();
-      alert("Gagal upload: " + err.message);
-    }
+  e.preventDefault();
+  if (!imageFile) {
+    alert("Pilih gambar produk");
+    return;
   }
+
+  // Minta URL upload ke API
+  const res1 = await fetch("/api/blob/upload-url", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename: imageFile.name, contentType: imageFile.type }),
+  });
+  if (!res1.ok) {
+    alert("Gagal mendapatkan upload URL");
+    return;
+  }
+  const { url, uploadUrl } = await res1.json();
+
+  // Upload gambar langsung ke Blob Storage
+  const uploadRes = await fetch(uploadUrl, {
+    method: "PUT",
+    body: imageFile,
+    headers: { "Content-Type": imageFile.type }
+  });
+  if (!uploadRes.ok) {
+    alert("Upload gambar gagal!");
+    return;
+  }
+
+  // Simpan data produk ke database
+  const res2 = await fetch("/api/products", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      name,
+      description,
+      imageUrl: url,
+    }),
+  });
+  if (res2.ok) {
+    const { product } = await res2.json();
+    setProducts([product, ...products]);
+    setName(""); setDescription(""); setImageFile(null);
+    alert("Produk berhasil ditambahkan!");
+  } else {
+    const err = await res2.json();
+    alert("Gagal simpan data produk: " + err.message);
+  }
+}
+
 
   async function handleDelete(productId) {
     if (!confirm("Yakin hapus produk ini?")) return;
